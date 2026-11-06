@@ -1,6 +1,6 @@
 import customtkinter as Ctk
 from PIL import Image
-from ctk_xyframe import *
+from external.ctk_xyframe import *
 
 class Map():
 
