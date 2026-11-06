@@ -37,7 +37,7 @@ class Map():
 
         img_size = (50,50) # Képek mérete
 
-        frame_size = (img_size[0]*len(map[1]),img_size[1]*len(map)+15) #Teljes ablak mérete
+        frame_size = (img_size[0]*len(map[1]),300) #Teljes ablak mérete (dinamikus = img_size[0]*len(map[1]),img_size[1]*len(map)+15, statikus = 300,300)
         
         self.main.geometry(f"{frame_size[0]}x{frame_size[1]}")
 
