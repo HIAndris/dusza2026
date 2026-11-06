@@ -1,2 +1,5 @@
 customtkinter
 pillow
+# linux alatt a tkinter külön telepítendő
+# debian: sudo apt install python3-tk
+# arch: sudo pacman -S tk
