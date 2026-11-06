@@ -1,11 +1,13 @@
 import customtkinter as Ctk
 from PIL import Image
+from ctk_xyframe import *
+
 class Map():
 
     #Futtatás példa:
     #main = Ctk.Ctk()
     #testui = Map(main = main, nev="Teszt")
-    #testui.update(["....@..........", ".#############.", ".......@...<..."])
+    #testui.update(rover_x = 10, rover_y= 2, rover_point=">", map=["....@..........", ".#############.", ".......@......."])
     #main.mainloop()
 
     def __init__(self, main:Ctk.CTk, nev:str):
@@ -19,42 +21,45 @@ class Map():
         self.main.title(nev)
         self.main.resizable(False, False)
 
-        self.frame = Ctk.CTkScrollableFrame(self.main)
+        self.frame = CTkXYFrame(self.main)
         self.frame.pack(fill="both", expand=True)
+        
         self.timer = None
+        
+        self.oldmap = []
+
+        self.img_size = (50,50) # Képek mérete
+
+        self.gold = Ctk.CTkImage(light_image=Image.open('img/gold.png'), dark_image=Image.open("img/gold.png"), size=self.img_size) # Arany érc képének betöltése
+
+        self.rover_img = "img/rover.png"
+
+        self.wall = Ctk.CTkImage(light_image=Image.open('img/wall.png'), dark_image=Image.open("img/wall.png"), size=self.img_size) # Kövek képének betöltése
+
+        self.nothing = Ctk.CTkImage(light_image=Image.open('img/nothing.png'), dark_image=Image.open("img/nothing.png"), size=self.img_size)
 
 
-    def update(self, map:list):
+    def update(self, rover_x:int, rover_y:int, rover_point:str, map:list):
         '''
             Frissíti a térképet.
         '''
 
-        if self.timer != None: #Timer reset
+        if self.timer != None and self.oldmap == []: #Timer reset
             self.main.after_cancel(self.timer)
 
-        for widget in self.frame.winfo_children(): #Teljes tisztítás
-            widget.destroy()
+        if self.oldmap == []:
+            for widget in self.frame.winfo_children(): #Teljes tisztítás
+                widget.destroy()
 
-        img_size = (50,50) # Képek mérete
+            frame_size = (700,600) #Teljes ablak mérete (dinamikus = img_size[0]*len(map[1]),img_size[1]*len(map)+15, statikus = 700,600)
+            self.main.geometry(f"{frame_size[0]}x{frame_size[1]}")
 
-        frame_size = (img_size[0]*len(map[1]),300) #Teljes ablak mérete (dinamikus = img_size[0]*len(map[1]),img_size[1]*len(map)+15, statikus = 300,300)
-        
-        self.main.geometry(f"{frame_size[0]}x{frame_size[1]}")
-
-        gold = Ctk.CTkImage(light_image=Image.open('img/gold.png'), dark_image=Image.open("img/gold.png"), size=img_size) # Arany érc képének betöltése
-
-        rover_img = "img/rover.png"
-
-        wall = Ctk.CTkImage(light_image=Image.open('img/wall.png'), dark_image=Image.open("img/wall.png"), size=img_size) # Kövek képének betöltése
-
-        nothing = Ctk.CTkImage(light_image=Image.open('img/nothing.png'), dark_image=Image.open("img/nothing.png"), size=img_size)
-
-        def cropimg(row:int, col:int):
+        def cropimg(row:int, col:int, img):
             '''
                 Egy adot sorban lévő db-ig lévő objetumot jeleníti meg
             '''
 
-            original = Image.open(rover_img)
+            original = Image.open(img)
 
             width, height = original.size
             left = (col - 2 )* width/12 # right - 1
@@ -66,10 +71,10 @@ class Map():
             return cropped_img
 
         rover = {
-            ">": lambda x: Ctk.CTkImage(light_image=cropimg(1, x), dark_image=cropimg(1, x), size=img_size),
-            "<": lambda x: Ctk.CTkImage(light_image=cropimg(3, x), dark_image=cropimg(3, x), size=img_size),
-            "v": lambda x: Ctk.CTkImage(light_image=cropimg(4, x), dark_image=cropimg(4, x), size=img_size),
-            "^": lambda x: Ctk.CTkImage(light_image=cropimg(2, x), dark_image=cropimg(2, x), size=img_size)
+            ">": lambda x: Ctk.CTkImage(light_image=cropimg(1, x, self.rover_img), dark_image=cropimg(1, x, self.rover_img), size=self.img_size),
+            "<": lambda x: Ctk.CTkImage(light_image=cropimg(3, x, self.rover_img), dark_image=cropimg(3, x, self.rover_img), size=self.img_size),
+            "v": lambda x: Ctk.CTkImage(light_image=cropimg(4, x, self.rover_img), dark_image=cropimg(4, x, self.rover_img), size=self.img_size),
+            "^": lambda x: Ctk.CTkImage(light_image=cropimg(2, x, self.rover_img), dark_image=cropimg(2, x, self.rover_img), size=self.img_size)
         }
 
 
@@ -81,26 +86,28 @@ class Map():
         for row in range(len(map)):
             for col in range(len(map[row])):
                 item = map[row][col]
+                if self.oldmap != [] and item == self.oldmap[row][col]:
+                    continue
                 
                 self.frame.grid_rowconfigure(row, weight=1)
                 self.frame.grid_columnconfigure(col, weight=1)
 
-                if item == "@":
-                    Ctk.CTkLabel(self.frame, text="", image=gold).grid(row=row, column=col)
-                elif item == ">" or item == "<" or item == "^" or item == "v":
-                    rover_lb = Ctk.CTkLabel(self.frame, text="", image=rover[item](3))
+                if row == rover_y and col == rover_x:
+                    rover_lb = Ctk.CTkLabel(self.frame, text="", image=rover[rover_point](3))
                     rover_lb.grid(row=row, column=col)
 
                     if self.timer != None:
                         self.main.after_cancel(self.timer)
                     
-                    sitem = item
 
-                    self.timer = self.main.after(1000, lambda: rover_anim(rover[sitem], rover_lb))
+                    self.timer = self.main.after(1000, lambda: rover_anim(rover[rover_point], rover_lb))
+                    break
+
+                if item == "@":
+                    Ctk.CTkLabel(self.frame, text="", image=self.gold).grid(row=row, column=col)
                 elif item == "#":
-                    Ctk.CTkLabel(self.frame, text="", image=wall).grid(row=row, column=col)
+                    Ctk.CTkLabel(self.frame, text="", image=self.wall).grid(row=row, column=col)
                 else:
-                    Ctk.CTkLabel(self.frame, text="", image=nothing).grid(row=row, column=col)
+                    Ctk.CTkLabel(self.frame, text="", image=self.nothing).grid(row=row, column=col)
 
-        
-    
+        self.oldmap = map
