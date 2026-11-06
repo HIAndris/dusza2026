@@ -39,7 +39,28 @@ class RobotAPI:
             raise ValueError("E_NO_GOLD")
 
         self._setPos_(self.pos[0],self.pos[1],'.')
+    def isThere(self,toCheck:int)->bool:
+        checkFor = ''
+        if toCheck == 0:
+            checkFor = '.'
+        elif toCheck == 1:
+            checkFor = '#'
+        elif toCheck == 2:
+            checkFor = '@'
 
+        checkAgainst = ''
+
+        inFront = [ self.pos[0]-1 if self.facing == 1 else self.pos[0]+1 if self.facing == 3 else self.pos[0],\
+                    self.pos[1]-1 if self.facing == 0 else self.pos[1]+1 if self.facing == 2 else self.pos[1]]
+
+        if inFront[0] < 0 or inFront[0] >= self.width:
+            checkAgainst = '#'
+        elif inFront[1] < 0 or inFront[1] >= self.height:
+            checkAgainst = '#'
+        else:
+            checkAgainst = self.map[inFront[1]][inFront[0]]
+
+        return checkFor == checkAgainst
 
 
 
@@ -90,8 +111,11 @@ class Interpreter:
         for var in self.vars:
             num = self.vars[var]
             print(f"{var}:{self.types[num]} = {self.varVals[num]}")
-    def _handleIsThere(self,simpleVal:str):
-        return
+    def _handleIsThere(self,simpleVal:list)->bool:
+        if simpleVal[0] != int or simpleVal[1] > 2 or simpleVal[1] < 0:
+            raise ValueError("E_BAD_ARG")
+        else:
+            return self.rover.isThere(simpleVal[1])
 
     def _readSimpleVal_(self,var:str)->tuple[type,bool|int]:
         # identifier | number | boolean-lit
@@ -153,7 +177,14 @@ class Interpreter:
                     value = self.operators["not"](returned[1])
                 else:
                     # Itt is 100% hogy a jó function lesz mivel ilyen szempontból hiba mentes lesz a kód
-                    self.functions[expression[0]](expression[1])
+                    typeof, simpVal = self._readSimpleVal_(expression[1])
+                    # az isThere függvény igaz-hamist ad vissza, szóval a változónak anak kell lennie
+                    value = self.functions[expression[0]]([typeof,simpVal])
+
+                    if varType == None:
+                        varType = bool
+                    elif varType != bool:
+                        raise ValueError("E_TYPE_MISMATCH")
 
             case 3:
                 var1type, var1val = self._readSimpleVal_(expression[0])
@@ -390,18 +421,12 @@ if __name__ == "__main__":
 ....@..........
 .#############.
 .......@...>...
-set x to 0
-set y to true
-if y
-  print x
-  set x to x + 1
-  set y to x < 10
-  set j to x = 0
-  if j
-     print x
-     set k to y = true
-     if k
-         print y
+turn by 1
+set y to isThere 1
+print y
+turn by 2
+set y to isThere 1
+print y
 """
     inter = Interpreter(prog)
     while -1 != inter.runLine():
