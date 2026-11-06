@@ -93,6 +93,15 @@ class Map():
                 self.frame.grid_rowconfigure(row, weight=1)
                 self.frame.grid_columnconfigure(col, weight=1)
 
+
+                if item == "@":
+                    Ctk.CTkLabel(self.frame, text="", image=self.gold).grid(row=row, column=col)
+                elif item == "#":
+                    Ctk.CTkLabel(self.frame, text="", image=self.wall).grid(row=row, column=col)
+                else:
+                    Ctk.CTkLabel(self.frame, text="", image=self.nothing).grid(row=row, column=col)
+
+                    
                 if row == rover_y and col == rover_x:
                     if self.oldroverpos != [] and (self.oldroverpos[0] != rover_y or self.oldroverpos[1] != rover_x):
                         Ctk.CTkLabel(self.frame, text="", image=self.nothing).grid(row=self.oldroverpos[0], column=self.oldroverpos[1])
@@ -106,13 +115,5 @@ class Map():
                     
 
                     self.timer = self.main.after(1000, lambda: rover_anim(rover[rover_point], rover_lb))
-                    break
-
-                if item == "@":
-                    Ctk.CTkLabel(self.frame, text="", image=self.gold).grid(row=row, column=col)
-                elif item == "#":
-                    Ctk.CTkLabel(self.frame, text="", image=self.wall).grid(row=row, column=col)
-                else:
-                    Ctk.CTkLabel(self.frame, text="", image=self.nothing).grid(row=row, column=col)
 
         self.oldmap = map
