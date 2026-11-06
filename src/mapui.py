@@ -96,7 +96,6 @@ class Map():
                 if row == rover_y and col == rover_x:
                     if self.oldroverpos != [] and (self.oldroverpos[0] != rover_y or self.oldroverpos[1] != rover_x):
                         Ctk.CTkLabel(self.frame, text="", image=self.nothing).grid(row=self.oldroverpos[0], column=self.oldroverpos[1])
-                        print(self.oldroverpos)
 
                     self.oldroverpos = [rover_y, rover_x]
                     rover_lb = Ctk.CTkLabel(self.frame, text="", image=rover[rover_point](3))
