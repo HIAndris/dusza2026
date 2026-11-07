@@ -1,3 +1,6 @@
+import io
+from contextlib import redirect_stdout
+
 class RobotAPI:
     def _setPos_(self,x:int,y:int,to:str):
         line = self.map[y]
@@ -60,6 +63,9 @@ class RobotAPI:
         else:
             checkAgainst = self.map[inFront[1]][inFront[0]]
 
+        #print(inFront,self.width,self.height,checkFor,checkAgainst)
+        #print('\n'.join(self.map),self.pos)
+
         return checkFor == checkAgainst
 
 
@@ -67,7 +73,9 @@ class RobotAPI:
 
 class Interpreter:
     def __init__(self,inFile:str)->None:
-        self.file = inFile.split('\n')[:-1]
+        self.file = inFile.split('\n')
+        if self.file[-1] == '':
+            self.file = self.file[:-1]
 
         # Robot API dolgok
         height,width = self.file[0].split(' ')
@@ -75,9 +83,6 @@ class Interpreter:
         height = int(height)
         roverMap = self.file[1:height+1]
         self.rover = RobotAPI(roverMap,width,height)
-
-        # A térkép törlése
-        self.file = self.file[height+1:]
 
         # Ténylegesen az interpreter dolgai
         self.vars:dict[str,int] = {}
@@ -101,7 +106,7 @@ class Interpreter:
                 "or" : (lambda a,b: a or b),
                 "not": (lambda a:   not a)
             }
-        self.lineNum = 0
+        self.lineNum = height+1
         self.depth = 0
         self.spacecount = [0]    # Az előző soron minden rétegben a space-ek száma
         self.indentStart = []   # A sornak az indexe ahol a beljebb kezdés kezdődik (lista mivel több loop is lehet)
@@ -224,7 +229,10 @@ class Interpreter:
 
     def _handlePrint_(self,tokenized:list):
         simpleval = self._readSimpleVal_(tokenized[1])
-        print(simpleval[1])
+        if simpleval[0] == bool:
+            print(str(simpleval[1]).lower())
+        else:
+            print(simpleval[1])
 
     def _handleWhile_(self,tokenized:list):
         simpleval = self._readSimpleVal_(tokenized[1])
@@ -291,7 +299,6 @@ class Interpreter:
             self.shouldRunindent = False
 
     def _handleElse_(self,tokenized:list):
-        print("Handle else")
         #   0 
         # else
         # Meg kell keresni az if-et amihez tartozott
@@ -309,7 +316,6 @@ class Interpreter:
         assert line > 0 # Mivel ugye nem lehet úgy else hogy nincsen előtte if
 
         ifLine = self._cropLine_(self.file[line])[0].split(' ')
-        print(ifLine)
         #  0 1
         # if n
 
@@ -319,8 +325,31 @@ class Interpreter:
         if simpleval == True:
             # Nem kell lefutni az else-nek
             self.shouldRunindent = False
-        #else:
-            # Le kell futni az else-nek de ilyenkor semmi extrát nem kell csinálni
+        else:
+            # Le kell futni az else-nek
+            self.indentStart.append(-self.lineNum)
+            self.shouldRunindent = True
+            self.depth += 1
+
+    def _handleDepthChange_(self):
+        # Eldönti hogy skippelje-e ezt a réteget (ha például if-else-blockba hamis az állítás
+        # -2 = break
+        # -1 = exit
+        # 1 = norm
+        self.spacecount.pop()
+        self.depth-=1
+        #print("-depth")
+        # Nem kell foglalkozni azzal hogy nem lesz elkülönítve a 0. sorba az if és a while mivel a nulladik sorba úgyis a térkép van
+        #print(self.indentStart)
+        if self.indentStart[self.depth] >= 0:
+            self.lineNum = self.indentStart[self.depth]
+            self.indentStart.pop()
+            line = self.file[self.lineNum]
+            line,self.spacecount = self._cropLine_(line)
+            return line
+        else:
+            self.indentStart.pop()
+        return 1
 
     def _handleEOF_(self)->int:
         # ha vége lenne a file-nak és még loop-ba lennénk
@@ -328,18 +357,15 @@ class Interpreter:
             if self.depth <=0:
                 return -1
             while self.depth > 0:
-                self.depth-=1
-                # Nem kell foglalkozni azzal hogy nem lesz elkülönítve a 0. sorba az if és a while mivel a nulladik sorba úgyis a térkép van
-                if self.indentStart[self.depth] >= 0:
-                    self.lineNum = self.indentStart[self.depth]
-                    self.indentStart.pop()
-                    _,self.spacecount = self._cropLine_(self.file[self.lineNum])
+                ret = self._handleDepthChange_()
+
+                if ret == -1:
+                    return -1
+                elif ret == 1 and len(self.indentStart) <= 0:
+                    return -1
+                elif ret != 1:
                     break
-                else:
-                    # ha if volt akkor csak szedjük le és nézzük meg az alatta lévő réteget
-                    self.indentStart.pop()
-                    if len(self.indentStart) <= 0:
-                        return -1
+
             if self.depth < 0:
                 return -1
         return 1
@@ -351,40 +377,35 @@ class Interpreter:
         line = self.file[self.lineNum]
         # Eldönti hogy skippelje-e ezt a réteget (ha például if-else-blockba hamis az állítás
         while self.shouldRunindent == False:
-            # A szóközöket megszámolja és kitörli
+            # A szóközöket megszámolja
             spaces = 0
             while line[spaces] == ' ':
                 spaces+=1
-            # Addig megy végig a sorokon amíg nem talál egy olyat ami ugyan annyira van beljebb kezdve mint ő maga
-            if spaces != sum(self.spacecount):
+            # Addig megy végig a sorokon amíg nem talál egy olyat ami ugyan annyira van beljebb kezdve mint ő maga, vagy nincs annyira behúzva mint ő maga, vagy eléri a file végét
+            if spaces > sum(self.spacecount):
                 self.lineNum += 1
                 if self._handleEOF_() < 0:
                     return -1
                 line = self.file[self.lineNum]
             else:
                 self.shouldRunindent = True
+                # Ilyenkor lehet az is hogy most már kevesebb a behúzás mint eddig de ezt elvileg a következő pár kódsor kezeli
 
         line,spaces = self._cropLine_(line)
 
         # Ha kiértünk egy beljebb kezdett blokkból akkor ugorjon vissza a loop elejére, ha van
-        if sum(spaces) < sum(self.spacecount):
-            while sum(spaces) < sum(self.spacecount):
-                self.spacecount.pop()
-                self.depth-=1
-                print("-depth")
-            # Nem kell foglalkozni azzal hogy nem lesz elkülönítve a 0. sorba az if és a while mivel a nulladik sorba úgyis a térkép van
-            if self.indentStart[self.depth] >= 0:
-                self.lineNum = self.indentStart[self.depth]
-                self.indentStart.pop()
-                line = self.file[self.lineNum]
-                line,_ = self._cropLine_(line)
-            else:
-                self.indentStart.pop()
+        while sum(spaces) < sum(self.spacecount):
+            ret = self._handleDepthChange_()
+            if ret == -1:
+                return -1
+            elif ret != 1:
+                line = ret
+                break
 
-        self.spacecount = spaces
 
-        if line[-1] == '\n':
-            line=line[:-1]
+        if sum(spaces) > sum(self.spacecount):
+            self.spacecount.append(sum(spaces)-sum(self.spacecount))
+
         tokenized:list[str] = line.split(' ')   # Ez elég egyszerű mivel minden space-el el van választva
 
         match tokenized[0]:
@@ -415,19 +436,41 @@ class Interpreter:
 
 
 if __name__ == "__main__":
-    prog = \
+    header = \
 """\
 3 15
 ....@..........
 .#############.
 .......@...>...
-turn by 1
-set y to isThere 1
-print y
-turn by 2
-set y to isThere 1
-print y
 """
-    inter = Interpreter(prog)
-    while -1 != inter.runLine():
-        pass
+    tests = ''.join(open("./tests.txt","r",encoding="utf-8").readlines())
+    progs = tests.split('---')
+    ans = [progs[x] for x in range(len(progs)) if x%2==1]
+    ans = [(line[1:] if line[0] == '\n' else line) for line in ans]
+    ans = [(line[:-1] if line[-1] == '\n' else line) for line in ans]
+
+    progs = [progs[x] for x in range(len(progs)) if x%2==0]
+    progs = [(line[1:] if line[0] == '\n' else line) for line in progs]
+    progs = [(line[:-1] if line[-1] == '\n' else line) for line in progs]
+    progs = [header+line for line in progs]
+
+    #print(progs[12])
+    #inter = Interpreter(progs[12])
+    #while -1 != inter.runLine():
+    #    pass
+
+
+    for i in range(len(progs)):
+        print(f"Running test:{i}")
+        inter = Interpreter(progs[i])
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            while -1 != inter.runLine():
+                pass
+        output = buffer.getvalue()
+        if output == ans[i]+'\n':
+            print(f"Test {i} passed!")
+        else:
+            print(f"Test {i} failed:\n{progs[i]}\nExpected output:\n{ans[i]}\nOutput:\n{output}")
+            exit(-1)
+    print("Tests done!")
