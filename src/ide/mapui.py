@@ -14,8 +14,6 @@ class Map():
         '''
             Megnyitja a szimulációt egy külön lapon.
         '''
-        
-        Ctk.set_appearance_mode("dark")
 
         self.main = Ctk.CTk()
         self.main.title(nev)
