@@ -453,7 +453,7 @@ while condition
         else
             set x to x + 10
     else
-        set x to x + 100
+        set x to x + 5
     set i to i + 1
     set condition to i < 3
 print x
@@ -490,7 +490,7 @@ while condition
         if true
             set x to x + 10
         else
-            set x to x + 100
+            set x to x + 5
     set i to i + 1
     set condition to i < 5
 print x
@@ -538,7 +538,7 @@ set x to 0
 set condition to i < 4
 while condition
     if false
-        set x to x + 100
+        set x to x + 4
     else
         if true
             set x to x + 1
@@ -560,14 +560,14 @@ while condition
         set x to x + 10
     else
         if b
-            set x to x + 100
+            set x to x + 50
         else
             set x to x + 1
     set i to i + 1
     set condition to i < 5
 print x
 ---
-122
+72
 ---
 set i to 0
 set x to 0
@@ -580,14 +580,14 @@ while condition
         if b
             set x to x + 10
         else
-            set x to x + 100
+            set x to x + 50
     else
         set x to x + 1
     set i to i + 1
     set condition to i < 5
 print x
 ---
-115
+65
 ---
 set i to 0
 set x to 0
@@ -599,14 +599,14 @@ while condition
         if true
             set x to x + 10
         else
-            set x to x + 100
+            set x to x + 50
     else
-        set x to x + 1000
+        set x to x + 60
     set i to i + 1
     set condition to i < 3
 print x
 ---
-1022
+82
 ---
 set i to 0
 set x to 0
@@ -641,12 +641,12 @@ while condition
     if b
         set x to x + 10
     else
-        set x to x + 100
+        set x to x + 25
     set i to i + 1
     set condition to i < 4
 print x
 ---
-316
+91
 ---
 set i to 0
 set x to 0
@@ -682,14 +682,14 @@ while condition
     else
         set b to i = 3
         if b
-            set x to x + 100
+            set x to x + 20
         else
-            set x to x + 1000
+            set x to x + 30
     set i to i + 1
     set condition to i < 5
 print x
 ---
-1140
+90
 ---
 set i to 0
 set x to 0
@@ -720,7 +720,7 @@ while condition
     while inner
         set a to i = j
         if a
-            set x to x + 100
+            set x to x + 25
         else
             set asd = i < 1
             if asd
@@ -733,7 +733,7 @@ while condition
     set condition to i < 3
 print x
 ---
-324
+99
 ---
 set i to 0
 set x to 0
@@ -771,7 +771,7 @@ while condition
             set j to j + 1
             set inner to j < 2
     else
-        set x to x + 100
+        set x to x + 3
     set i to i + 1
     set condition to i < 3
 print x

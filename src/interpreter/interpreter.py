@@ -1,12 +1,27 @@
 import io
 from contextlib import redirect_stdout
 
+class Logger:
+    def __init__(self,filename:str) -> None:
+        self.file:str = filename
+        self.lineNum:int = 1
+        self.logState:list[str] = []
+    def writeToLog(self,text:str) -> None:
+        if text != "":
+            text = " "+text
+        self.logState.append(str(self.lineNum)+text)
+        self._write_()
+    def _write_(self)->None:
+        with open(self.file,"w",encoding="utf-8") as opened:
+            opened.write('\n'.join(self.logState))
+
 class RobotAPI:
     def _setPos_(self,x:int,y:int,to:str):
         line = self.map[y]
         line = line[:x]+to+line[x+1:]
         self.map[y] = line
-    def __init__(self,mapIn:list[str],width:int,height:int):
+    def __init__(self,mapIn:list[str],width:int,height:int,logger:Logger):
+        self.logger = logger
         self.map = mapIn
         self.width = width
         self.height= height
@@ -21,9 +36,14 @@ class RobotAPI:
         self._setPos_(self.pos[0],self.pos[1],'.')
         # 0 fel, 1 bal, 2 le, 3 jobb
         self.facing = self.getFaceFromIcon(self.map[self.pos[1]][self.pos[0]])
+    def raiseError(self,error):
+        self.logger.logState.append("EOR")
+        self.logger._write_()
+        raise ValueError(error)
     # itt már be lesz állítva hogy ne legyen negatív.
     # most jöttem rá hogy nem is lehet negatív mivel a turn-by-hoz csak egy számot lehet írni és nincsenek negatív számok az egészbe
     def turnBy(self,count:int):
+        self.logger.writeToLog("turn by "+str(count))
         self.facing = (self.facing+count)%4
     def stepForward(self,count:int):
         nextPos = self.pos
@@ -31,16 +51,22 @@ class RobotAPI:
             nextPos = [ nextPos[0]-1 if self.facing == 1 else nextPos[0]+1 if self.facing == 3 else nextPos[0],\
                         nextPos[1]-1 if self.facing == 0 else nextPos[1]+1 if self.facing == 2 else nextPos[1]]
             if nextPos[0] < 0 or nextPos[0] >= self.width:
-                raise ValueError("E_BEDROCK_HIT")
+                self.logger.writeToLog("step forward "+str(count)+" E_BEDROCK_HIT")
+                self.raiseError("E_BEDROCK_HIT")
             if nextPos[1] < 0 or nextPos[1] >= self.height:
-                raise ValueError("E_BEDROCK_HIT")
+                self.logger.writeToLog("step forward "+str(count)+" E_BEDROCK_HIT")
+                self.raiseError("E_BEDROCK_HIT")
             if self.map[nextPos[1]][nextPos[0]] == '#':
-                raise ValueError("E_BEDROCK_HIT")
+                self.logger.writeToLog("step forward "+str(count)+" E_BEDROCK_HIT")
+                self.raiseError("E_BEDROCK_HIT")
+        self.logger.writeToLog("step forward "+str(count))
         self.pos = nextPos
     def mine(self):
         if self.map[self.pos[1]][self.pos[0]] != '@':
-            raise ValueError("E_NO_GOLD")
+            self.logger.writeToLog("mine here E_NO_GOLD")
+            self.raiseError("E_NO_GOLD")
 
+        self.logger.writeToLog("mine here")
         self._setPos_(self.pos[0],self.pos[1],'.')
     def isThere(self,toCheck:int)->bool:
         checkFor = ''
@@ -72,17 +98,21 @@ class RobotAPI:
 
 
 class Interpreter:
-    def __init__(self,inFile:str)->None:
+    def __init__(self,inFile:str,outFile:str)->None:
         self.file = inFile.split('\n')
         if self.file[-1] == '':
             self.file = self.file[:-1]
+
+        # Logger:
+        self.logHandler:Logger = Logger(outFile)
 
         # Robot API dolgok
         height,width = self.file[0].split(' ')
         width = int(width)
         height = int(height)
         roverMap = self.file[1:height+1]
-        self.rover = RobotAPI(roverMap,width,height)
+        self.rover = RobotAPI(roverMap,width,height,self.logHandler)
+
 
         # Ténylegesen az interpreter dolgai
         self.vars:dict[str,int] = {}
@@ -108,18 +138,32 @@ class Interpreter:
             }
         self.lineNum = height+1
         self.depth = 0
+        self.identifiers = [
+                # Mindegyikből kivettem a nagybetűt, hogy a .lower-el ha nézi majd a változó nevét a program akkor megegyezzen
+                "and","by","else","false","forward","here","if","isthere","mine","not","or","print","set","step","to","true","turn","while"
+                ]
         self.spacecount = [0]    # Az előző soron minden rétegben a space-ek száma
         self.indentStart = []   # A sornak az indexe ahol a beljebb kezdés kezdődik (lista mivel több loop is lehet)
                                 # Ha negatív akkor az if blokk kezdetét jelzi
         self.shouldRunindent:bool = True
+    def raiseError(self,error:str)->None:
+        self.logHandler.logState.append("EOR")
+        self.logHandler._write_()
+        raise ValueError(error)
+
     def printVars(self):
         for var in self.vars:
             num = self.vars[var]
             print(f"{var}:{self.types[num]} = {self.varVals[num]}")
-    def _handleIsThere(self,simpleVal:list)->bool:
+
+    def _handleIsThere(self,simpleVal:list):
+        toLog = "isThere " + str(simpleVal[1])
         if simpleVal[0] != int or simpleVal[1] > 2 or simpleVal[1] < 0:
-            raise ValueError("E_BAD_ARG")
+            self.logHandler.writeToLog(toLog+" E_BAD_ARG")
+            self.raiseError("E_BAD_ARG")
         else:
+            ret = self.rover.isThere(simpleVal[1])
+            self.logHandler.writeToLog(toLog+" "+str(ret).lower())
             return self.rover.isThere(simpleVal[1])
 
     def _readSimpleVal_(self,var:str)->tuple[type,bool|int]:
@@ -136,7 +180,7 @@ class Interpreter:
         else:
             # 100% hogy identifier szóval ha nincs a listába akkor errort kell dobni
             if not var in self.vars:
-                raise ValueError("E_UNINITIALIZED")
+                return (ValueError,0)
             else:
                 toRet[0] = self.types[self.vars[var]]
                 toRet[1] = self.varVals[self.vars[var]]
@@ -146,6 +190,7 @@ class Interpreter:
         #  0  1  2   3..
         # set x to ertek
         name:str = tokenized[1]
+        assert tokenized[1].lower() not in self.identifiers
         value = 0
         expression:list[str] = tokenized[3:]
 
@@ -158,67 +203,96 @@ class Interpreter:
             # Csak simpleval lehet mert a function meg a binop, unop az több tokenből áll
             case 1:
                 returned = self._readSimpleVal_(expression[0])
+                if returned[0] == ValueError:
+                    self.logHandler.writeToLog("E_UNINITIALIZED")
+                    self.raiseError("E_UNINITIALIZED")
 
                 if varType == None:
                     varType = returned[0]
                 elif varType != returned[0]:
-                    raise ValueError("E_TYPE_MISMATCH")
+                    self.logHandler.writeToLog("E_TYPE_MISMATCH")
+                    self.raiseError("E_TYPE_MISMATCH")
                 value = returned[1]
+                self.logHandler.writeToLog("")
 
             # csak az unop tartozik ide
             case 2:
                 # Itt vagy unop lesz vagy function
                 if expression[0] == "not":
                     returned = self._readSimpleVal_(expression[1])
+                    if returned[0] == ValueError:
+                        self.logHandler.writeToLog("E_UNINITIALIZED")
+                        self.raiseError("E_UNINITIALIZED")
                     # muszály hogy bool legyen hogy a "not" működjön
                     if returned[0] != bool:
-                        raise ValueError("E_BAD_OPERAND")
+                        self.logHandler.writeToLog("E_BAD_OPERAND")
+                        self.raiseError("E_BAD_OPERAND")
 
                     if varType == None:
                         varType = bool
                     elif varType != bool:
-                        raise ValueError("E_TYPE_MISMATCH")
+                        self.logHandler.writeToLog("E_TYPE_MISMATCH")
+                        self.raiseError("E_TYPE_MISMATCH")
 
+                    self.logHandler.writeToLog("")
                     value = self.operators["not"](returned[1])
                 else:
-                    # Itt is 100% hogy a jó function lesz mivel ilyen szempontból hiba mentes lesz a kód
                     typeof, simpVal = self._readSimpleVal_(expression[1])
+                    if typeof == ValueError:
+                        self.logHandler.writeToLog("E_UNINITIALIZED")
+                        self.raiseError("E_UNINITIALIZED")
                     # az isThere függvény igaz-hamist ad vissza, szóval a változónak anak kell lennie
+                    if not expression[0] in self.functions:
+                        self.logHandler.writeToLog("E_UNINITIALIZED")
+                        self.raiseError("E_UNINITIALIZED")
                     value = self.functions[expression[0]]([typeof,simpVal])
 
                     if varType == None:
                         varType = bool
                     elif varType != bool:
-                        raise ValueError("E_TYPE_MISMATCH")
+                        self.logHandler.writeToLog("E_TYPE_MISMATCH")
+                        self.raiseError("E_TYPE_MISMATCH")
 
             case 3:
                 var1type, var1val = self._readSimpleVal_(expression[0])
                 var2type, var2val = self._readSimpleVal_(expression[2])
+                if var1type == ValueError or var2type == ValueError:
+                    self.logHandler.writeToLog("E_UNINITIALIZED")
+                    self.raiseError("E_UNINITIALIZED")
 
                 operator = expression[1]
                 retType = None
                 if (operator == "+" or operator == "-" or operator == "*"):
                     if (var1type != int or var2type != int):
-                        raise ValueError("E_BAD_OPERAND")
+                        self.logHandler.writeToLog("E_BAD_OPERAND")
+                        self.raiseError("E_BAD_OPERAND")
                     retType = int
                 if (operator == "<" or operator == "<=" or operator == ">" or operator == ">="):
                     if (var1type != int or var2type != int):
-                        raise ValueError("E_BAD_OPERAND")
+                        self.logHandler.writeToLog("E_BAD_OPERAND")
+                        self.raiseError("E_BAD_OPERAND")
                     retType = bool
                 if (operator == "and" or operator == "or"):
                     if (var1type != bool or var2type != bool):
-                        raise ValueError("E_BAD_OPERAND")
+                        self.logHandler.writeToLog("E_BAD_OPERAND")
+                        self.raiseError("E_BAD_OPERAND")
                     retType = bool
                 if (operator == "=" or operator == "<>"):
                     if (var1type != var2type):
-                        raise ValueError("E_BAD_OPERAND")
+                        self.logHandler.writeToLog("E_BAD_OPERAND")
+                        self.raiseError("E_BAD_OPERAND")
                     retType = bool
 
                 value = self.operators[operator](var1val,var2val)
                 if varType == None:
                     varType = retType
                 elif varType!=retType:
-                    raise ValueError("E_TYPE_MISMATCH")
+                    self.logHandler.writeToLog("E_BAD_OPERAND")
+                    self.raiseError("E_TYPE_MISMATCH")
+                self.logHandler.writeToLog("")
+
+        if value > 100 or value < 0:
+            self.raiseError("E_OUT_OF_RANGE")
 
         if isUsed:
             self.varVals[self.vars[name]] = value
@@ -228,21 +302,34 @@ class Interpreter:
             self.types[self.vars[name]] = varType
 
     def _handlePrint_(self,tokenized:list):
+        # print simpleval
         simpleval = self._readSimpleVal_(tokenized[1])
+        if simpleval[0] == ValueError:
+            self.logHandler.writeToLog("print E_UNINITIALIZED")
+            self.raiseError("E_UNINITIALIZED")
+
         if simpleval[0] == bool:
+            self.logHandler.writeToLog("print "+str(simpleval[1]).lower())
             print(str(simpleval[1]).lower())
         else:
+            self.logHandler.writeToLog("print "+str(simpleval[1]))
             print(simpleval[1])
 
     def _handleWhile_(self,tokenized:list):
         simpleval = self._readSimpleVal_(tokenized[1])
+        if simpleval[0] == ValueError:
+            self.logHandler.writeToLog("E_UNINITIALIZED")
+            self.raiseError("E_UNINITIALIZED")
         if simpleval[0] != bool:
-            raise ValueError("E_NON_BOOL_CONDITION")
+            self.logHandler.writeToLog("E_NON_BOOL_CONDITION")
+            self.raiseError("E_NON_BOOL_CONDITION")
         if simpleval[1] == True:
+            self.logHandler.writeToLog("")
             self.shouldRunindent = True
             self.indentStart.append(self.lineNum)
             self.depth += 1
         else:
+            self.logHandler.writeToLog("")
             self.shouldRunindent = False
 
     def _cropLine_(self,lineIn:str)->tuple[str,list[int]]:
@@ -268,16 +355,23 @@ class Interpreter:
         #   0   1 2
         # turn by n
         typeof,simpleval = self._readSimpleVal_(tokenized[2])
+        if typeof == ValueError:
+            self.logHandler.writeToLog("turn by E_UNINITIALIZED")
         if typeof != int:
-            raise ValueError("E_BAD_ARG")
+            self.logHandler.writeToLog("turn by "+ str(simpleval).lower() + " E_BAD_ARG")
+            self.raiseError("E_BAD_ARG")
         self.rover.turnBy(simpleval)
 
     def _handleStep_(self,tokenized:list):
         #   0     1    2
         # step forward n
         typeof,simpleval = self._readSimpleVal_(tokenized[2])
+        if typeof == ValueError:
+            self.logHandler.writeToLog("step forward E_UNINITIALIZED")
+            self.raiseError("E_UNINITIALIZED")
         if typeof != int:
-            raise ValueError("E_BAD_ARG")
+            self.logHandler.writeToLog("step forward E_BAD_ARG")
+            self.raiseError("E_BAD_ARG")
         self.rover.stepForward(simpleval)
 
     def _handleMine_(self,tokenized:list):
@@ -289,14 +383,19 @@ class Interpreter:
         #  0 1
         # if n
         typeof,simpleval = self._readSimpleVal_(tokenized[1])
+        if typeof == ValueError:
+            self.logHandler.writeToLog("E_UNINITIALIZED")
+            self.raiseError("E_UNINITIALIZED")
         if typeof != bool:
-            raise ValueError("E_NON_BOOL_CONDITION")
+            self.logHandler.writeToLog("E_NON_BOOL_CONDITION")
+            self.raiseError("E_NON_BOOL_CONDITION")
         if simpleval == True:
             self.shouldRunindent = True
             self.indentStart.append(-self.lineNum)
             self.depth += 1
         else:
             self.shouldRunindent = False
+        self.logHandler.writeToLog("")
 
     def _handleElse_(self,tokenized:list):
         #   0 
@@ -320,13 +419,14 @@ class Interpreter:
         # if n
 
         typeof,simpleval = self._readSimpleVal_(ifLine[1])
-        if typeof != bool:
-            raise ValueError("E_NON_BOOL_CONDITION")
+        # Itt nem lehet uninitialized, se pedig más típusú mivel akkor már error-t dobott volna az if-nél.
+        assert typeof == bool
         if simpleval == True:
             # Nem kell lefutni az else-nek
             self.shouldRunindent = False
         else:
             # Le kell futni az else-nek
+            self.logHandler.writeToLog("")
             self.indentStart.append(-self.lineNum)
             self.shouldRunindent = True
             self.depth += 1
@@ -355,18 +455,26 @@ class Interpreter:
         # ha vége lenne a file-nak és még loop-ba lennénk
         if self.lineNum >= len(self.file):
             if self.depth <=0:
+                self.logHandler.logState.append("EOR")
+                self.logHandler._write_()
                 return -1
             while self.depth > 0:
                 ret = self._handleDepthChange_()
 
                 if ret == -1:
+                    self.logHandler.logState.append("EOR")
+                    self.logHandler._write_()
                     return -1
                 elif ret == 1 and len(self.indentStart) <= 0:
+                    self.logHandler.logState.append("EOR")
+                    self.logHandler._write_()
                     return -1
                 elif ret != 1:
                     break
 
             if self.depth < 0:
+                self.logHandler.logState.append("EOR")
+                self.logHandler._write_()
                 return -1
         return 1
 
@@ -397,6 +505,8 @@ class Interpreter:
         while sum(spaces) < sum(self.spacecount):
             ret = self._handleDepthChange_()
             if ret == -1:
+                self.logHandler.logState.append("EOR")
+                self.logHandler._write_()
                 return -1
             elif ret != 1:
                 line = ret
@@ -408,6 +518,7 @@ class Interpreter:
 
         tokenized:list[str] = line.split(' ')   # Ez elég egyszerű mivel minden space-el el van választva
 
+        self.logHandler.lineNum = self.lineNum-self.rover.height
         match tokenized[0]:
             case "step":
                 self._handleStep_(tokenized)
@@ -435,7 +546,7 @@ class Interpreter:
         self.lineNum+=1
 
 
-if __name__ == "__main__":
+def outerTest():
     header = \
 """\
 3 15
@@ -462,7 +573,7 @@ if __name__ == "__main__":
 
     for i in range(len(progs)):
         print(f"Running test:{i}")
-        inter = Interpreter(progs[i])
+        inter = Interpreter(progs[i],"outTest.txt")
         buffer = io.StringIO()
         with redirect_stdout(buffer):
             while -1 != inter.runLine():
@@ -474,3 +585,27 @@ if __name__ == "__main__":
             print(f"Test {i} failed:\n{progs[i]}\nExpected output:\n{ans[i]}\nOutput:\n{output}")
             exit(-1)
     print("Tests done!")
+
+def innerTest():
+    prog = \
+"""\
+3 15
+....@..........
+.#############.
+.......@...>...
+turn by 2
+set arany to isThere 5
+set isArany to not arany
+while isArany
+  step forward 1
+  set arany to isThere 2
+  set isArany to not arany
+step forward 1
+mine here
+print 9\
+"""
+    inter = Interpreter(prog,"outTest.txt")
+    while -1 != inter.runLine():
+        pass
+if __name__ == "__main__":
+    innerTest()
