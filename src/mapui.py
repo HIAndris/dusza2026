@@ -5,19 +5,19 @@ from external.ctk_xyframe import *
 class Map():
 
     #Futtatás példa:
-    #main = Ctk.Ctk()
-    #testui = Map(main = main, nev="Teszt")
+    #from mapui import *
+    #testui = Map(nev="Teszt")
     #testui.update(rover_x = 10, rover_y= 2, rover_point=">", map=["....@..........", ".#############.", ".......@......."])
-    #main.mainloop()
+    #testui.main.mainloop()
 
-    def __init__(self, main:Ctk.CTk, nev:str):
+    def __init__(self, nev:str):
         '''
             Megnyitja a szimulációt egy külön lapon.
         '''
         
         Ctk.set_appearance_mode("dark")
 
-        self.main = main
+        self.main = Ctk.CTk()
         self.main.title(nev)
         self.main.resizable(False, False)
 
