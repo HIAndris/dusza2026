@@ -6,18 +6,18 @@ class Map():
 
     #Futtatás példa:
     #from mapui import *
-    #testui = Map(nev="Teszt")
+    #testui = Map(nev="Teszt",parentwindow=<Ctk.Ctk object>)
     #testui.update(rover_x = 10, rover_y= 2, rover_point=">", map=["....@..........", ".#############.", ".......@......."])
-    #testui.main.mainloop()
 
-    def __init__(self, nev:str):
+    def __init__(self, nev:str, parentwindow):
         '''
             Megnyitja a szimulációt egy külön lapon.
         '''
         
         Ctk.set_appearance_mode("dark")
 
-        self.main = Ctk.CTk()
+        self.main = Ctk.CTkToplevel(parentwindow)
+        self.main.focus()
         self.main.title(nev)
         self.main.resizable(False, False)
 
@@ -31,14 +31,14 @@ class Map():
 
         self.img_size = (50,50) # Képek mérete
 
-        self.gold = Ctk.CTkImage(light_image=Image.open('../img/gold.png'), dark_image=Image.open("../img/gold.png"), size=self.img_size) # Arany érc képének betöltése
+        self.gold = Ctk.CTkImage(light_image=Image.open('img/gold.png'), dark_image=Image.open("img/gold.png"), size=self.img_size) # Arany érc képének betöltése
 
         self.rover_img = "img/rover.png"
 
-        self.wall = Ctk.CTkImage(light_image=Image.open('../img/wall.png'), dark_image=Image.open("../img/wall.png"), size=self.img_size) # Kövek képének betöltése
+        self.wall = Ctk.CTkImage(light_image=Image.open('img/wall.png'), dark_image=Image.open("img/wall.png"), size=self.img_size) # Kövek képének betöltése
 
-        self.nothing = Ctk.CTkImage(light_image=Image.open('../img/nothing.png'), dark_image=Image.open(
-            "../img/nothing.png"), size=self.img_size)
+        self.nothing = Ctk.CTkImage(light_image=Image.open('img/nothing.png'), dark_image=Image.open(
+            "img/nothing.png"), size=self.img_size)
 
 
     def update(self, rover_x:int, rover_y:int, rover_point:str, map:list):

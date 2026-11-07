@@ -1,4 +1,5 @@
 import customtkinter as ctk
+from ide.mapui import Map
 from PIL import Image
 import os
 
@@ -8,6 +9,8 @@ class IDE:
         self.output_file = str(output_file)
 
         self.window = ctk.CTk()
+        self.subwindow = Map("Rover",self.window)
+        self.subwindow.update( 11, 2, '>',["....@..........",".#############.",".......@...>..."])
 
         screen_width = self.window.winfo_screenwidth()
         screen_height = self.window.winfo_screenheight()
