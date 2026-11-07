@@ -6,14 +6,20 @@ class Logger:
         self.file:str = filename
         self.lineNum:int = 1
         self.logState:list[str] = []
+        self.lineCount = 0
     def writeToLog(self,text:str) -> None:
         if text != "":
             text = " "+text
         self.logState.append(str(self.lineNum)+text)
         self._write_()
     def _write_(self)->None:
+        self.lineCount += 1
         with open(self.file,"w",encoding="utf-8") as opened:
-            opened.write('\n'.join(self.logState))
+            if self.lineCount > 999:
+                opened.write('\n'.join(self.logState)+"\nINSTRUCTION_COUNT_LIMIT_EXCEEDED")
+                raise ValueError("INSTRUCTION_COUNT_LIMIT_EXCEEDED")
+            else:
+                opened.write('\n'.join(self.logState))
 
 class RobotAPI:
     def _setPos_(self,x:int,y:int,to:str):
@@ -594,13 +600,11 @@ def innerTest():
 .#############.
 .......@...>...
 turn by 2
-set arany to isThere 5
+set arany to isThere 2
 set isArany to not arany
 while isArany
-  step forward 1
   set arany to isThere 2
-  set isArany to not arany
-step forward 1
+step forward 10
 mine here
 print 9\
 """
