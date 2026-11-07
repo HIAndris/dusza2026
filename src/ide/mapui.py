@@ -21,7 +21,8 @@ class Map():
 
         self.frame = CTkXYFrame(self.main)
         self.frame.pack(fill="both", expand=True)
-        
+
+
         self.timer = None
         
         self.oldmap = []
@@ -29,20 +30,90 @@ class Map():
 
         self.img_size = (50,50) # Képek mérete
 
-        self.gold = Ctk.CTkImage(light_image=Image.open('img/gold.png'), dark_image=Image.open("img/gold.png"), size=self.img_size) # Arany érc képének betöltése
+        self.goldOG = Image.open('img/gold.png').convert('RGBA')
+        self.gold = Ctk.CTkImage(light_image=self.goldOG, dark_image=self.goldOG, size=self.img_size) # Arany érc képének betöltése
 
         self.rover_img = "img/rover.png"
 
-        self.wall = Ctk.CTkImage(light_image=Image.open('img/wall.png'), dark_image=Image.open("img/wall.png"), size=self.img_size) # Kövek képének betöltése
+        self.wallOG = Image.open('img/wall.png').convert('RGBA')
+        self.wall = Ctk.CTkImage(light_image=self.wallOG, dark_image=self.wallOG, size=self.img_size) # Kövek képének betöltése
 
-        self.nothing = Ctk.CTkImage(light_image=Image.open('img/nothing.png'), dark_image=Image.open(
-            "img/nothing.png"), size=self.img_size)
+        self.nothing = Ctk.CTkImage(light_image=Image.open('img/nothing.png'), dark_image=Image.open("img/nothing.png"), size=self.img_size)
+
+        # Azok amik ahoz kellenek hogy megjelenítse melyik helyeken járt meg ilyenek:
+        self.visited = [[5,1],[3,1]]
+        self.saw = [[9,2],[10,2]]
+        self.visitedImg = Image.open("img/visited.png")
+        self.visitedImg = self.visitedImg.resize(self.img_size)
+        self.sawImg = Image.open("img/saw.png")
+        self.sawImg = self.sawImg.resize(self.img_size)
+
+        # A GUI
+        self.buttonFrame = Ctk.CTkFrame(self.main,height=100,fg_color="#575757")
+        self.buttonFrame.pack(side="bottom",fill="x")
+        self.goldBox = Ctk.CTkFrame(self.buttonFrame,width=200,fg_color="#676767")
+        self.goldBox.pack(side="right",fill="y")
+        self.goldFrame = Ctk.CTkFrame(self.goldBox,height=self.img_size[1],fg_color="#676767")
+        self.goldFrame.place(anchor="center",relx=0.5,rely=0.5)
+        img = Image.open('img/gold.png')
+        gold2 = Ctk.CTkImage(light_image=img,dark_image=img,size=(int(img.width*1.5),int(img.height*1.5)))
+        self.goldIMG = Ctk.CTkLabel(self.goldFrame,text="",image=gold2)
+        self.goldIMG.pack(side="left")
+        self.goldText = Ctk.CTkLabel(self.goldFrame,text=" = 67",font=('Arial',28))
+        self.goldText.pack(side="right")
+
+        # Turn-by, step-forward, mine-here
+        # Az elképzelt layout:
+        #                                 ______________
+        #          [step]                 |    mine    |
+        # [turn-left]  [turn-right]       |    here    |
+        #                                 L____________J
+
+        self.controls = Ctk.CTkFrame(self.buttonFrame,fg_color="#575757")
+        self.controls.pack(side="left",fill="both",expand=True)
+
+        self.centeredCtrls = Ctk.CTkFrame(self.controls,fg_color="#575757")
+        self.centeredCtrls.place(anchor="center",relx=0.5,rely=0.5)
+        self.dPadFrameOuter = Ctk.CTkFrame(self.centeredCtrls,fg_color="#575757")
+        self.dPadFrameOuter.pack(side="left",fill="both",expand=True)
+        self.dPadFrame = Ctk.CTkFrame(self.dPadFrameOuter,fg_color="#575757")
+        self.dPadFrame.pack(side="left",pady=20,padx=20)
+        # A gombok:
+        self.stepBtn = Ctk.CTkButton(self.dPadFrame,
+                                     fg_color="#373737",hover_color="#474747",border_color="#ffffff",border_width=3,
+                                     text="⇪",width=30,height=60,
+                                     corner_radius=50,font=('Arial',24,"bold"))
+        self.stepBtn.place(anchor="n",relx=0.5,rely=0.1)
+        self.turnLBtn = Ctk.CTkButton(self.dPadFrame,
+                                     fg_color="#373737",hover_color="#474747",border_color="#ffffff",border_width=3,
+                                     text="↰",width=30,height=60,
+                                     corner_radius=50,font=('Arial',24,"bold"))
+        self.turnLBtn.place(anchor="w",relx=0.0,rely=0.6)
+        self.turnRBtn = Ctk.CTkButton(self.dPadFrame,
+                                     fg_color="#373737",hover_color="#474747",border_color="#ffffff",border_width=3,
+                                     text="↱",width=30,height=60,
+                                     corner_radius=50,font=('Arial',24,"bold"))
+        self.turnRBtn.place(anchor="e",relx=1.0,rely=0.6)
+
+        # A jobb oldal
+        self.RBtnWrapper = Ctk.CTkFrame(self.centeredCtrls,fg_color="#575757")
+        self.RBtnWrapper.pack(side="right",fill="both",expand=True,padx=30)
+        self.mineBtn = Ctk.CTkButton(self.RBtnWrapper,
+                                     fg_color="#373737",hover_color="#474747",border_color="#ffffff",border_width=3,
+                                     text="⛏",width=100,height=100,
+                                     corner_radius=50,font=('Arial',24,"bold"))
+        self.mineBtn.place(rely=0.5,relx=0.5,anchor="center")
 
 
     def update(self, rover_x:int, rover_y:int, rover_point:str, map:list):
         '''
             Frissíti a térképet.
         '''
+
+        if not [rover_x,rover_y] in self.visited:
+            self.visited.append([rover_x,rover_y])
+
+
 
         if self.timer != None and self.oldmap == []: #Timer reset
             self.main.after_cancel(self.timer)
@@ -93,13 +164,36 @@ class Map():
                 self.frame.grid_columnconfigure(col, weight=1)
 
 
+                imgLabel = None
+                currImg = None
                 if item == "@":
-                    Ctk.CTkLabel(self.frame, text="", image=self.gold).grid(row=row, column=col)
+                    imgLabel = Ctk.CTkLabel(self.frame, text="", image=self.gold)
+                    imgLabel.grid(row=row, column=col)
+                    currImg = self.goldOG
                 elif item == "#":
-                    Ctk.CTkLabel(self.frame, text="", image=self.wall).grid(row=row, column=col)
+                    imgLabel = Ctk.CTkLabel(self.frame, text="", image=self.wall)
+                    imgLabel.grid(row=row, column=col)
+                    currImg = self.wallOG
                 else:
-                    Ctk.CTkLabel(self.frame, text="", image=self.nothing).grid(row=row, column=col)
+                    imgLabel = Ctk.CTkLabel(self.frame, text="", image=self.nothing)
+                    imgLabel.grid(row=row, column=col)
 
+                toUse = None
+                if [col,row] in self.visited and imgLabel != None:
+                    toUse = self.visitedImg
+                elif [col,row] in self.saw and imgLabel != None:
+                    toUse = self.sawImg
+
+                if toUse != None:
+                    img = None
+                    if currImg == None:
+                        img = Ctk.CTkImage(light_image=toUse,dark_image=toUse,size=toUse.size)
+                    else:
+                        combined = toUse.copy()
+                        combined.alpha_composite(currImg)
+                        img = Ctk.CTkImage(light_image=combined,dark_image=combined,size=combined.size)
+                    overlay = Ctk.CTkLabel(self.frame,text="",image=img,fg_color="transparent")
+                    overlay.grid(row=row,column=col)
                     
                 if row == rover_y and col == rover_x:
                     if self.oldroverpos != [] and (self.oldroverpos[0] != rover_y or self.oldroverpos[1] != rover_x):
