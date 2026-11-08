@@ -42,10 +42,12 @@ class RobotAPI:
         self.map = mapIn
         self.width = width
         self.height= height
+        self.goldCount = 0
         # Csak megnézi hogy ezen a koordinátákon van e a robot
         self.isPlayer = lambda x,y : self.map[y][x] == '<' or self.map[y][x] == '^' or self.map[y][x] == '>' or self.map[y][x] == 'v'
         # Átkonvertálja a karaktert egy iránnyá
         self.getFaceFromIcon = lambda icon : 0 if icon == '^' else 1 if icon == '<' else 2 if icon == 'v' else 3
+        self.getIconFromFace = lambda face : '^' if face == 0 else '<' if face == 1 else 'v' if face == 2 else '>'
         for y in range(len(self.map)):
             for x in range(len(self.map[y])):
                 if self.isPlayer(x,y):
@@ -84,6 +86,7 @@ class RobotAPI:
 
         self._log_("mine here")
         self._setPos_(self.pos[0],self.pos[1],'.')
+        self.goldCount+=1
     def isThere(self,toCheck:int)->bool:
         checkFor = ''
         if toCheck == 0:

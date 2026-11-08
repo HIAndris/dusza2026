@@ -1,13 +1,30 @@
 import customtkinter as Ctk
+from interpreter.interpreter import RobotAPI
 from PIL import Image
 from external.ctk_xyframe import *
+
+def cropimg(row:int, col:int, img):
+    '''
+        Egy adot sorban lévő db-ig lévő objetumot jeleníti meg
+    '''
+
+    original = Image.open(img)
+
+    width, height = original.size
+    left = (col - 2 )* width/12 # right - 1
+    top = (row - 1 )* width/12
+    right = (col-1)* width/12 # Amit szeretnén db-1
+    bottom = row * width/12
+    cropped_img = original.crop((left, top, right, bottom))
+
+    return cropped_img
 
 class Map():
 
     #Futtatás példa:
     #from mapui import *
-    #testui = Map(nev="Teszt",parentwindow=<Ctk.Ctk object>)
-    #testui.update(rover_x = 10, rover_y= 2, rover_point=">", map=["....@..........", ".#############.", ".......@......."])
+    #testui = Map(nev="Teszt",parentwindow=<Ctk.Ctk object>,isSim:bool,RobotAPI)
+    #testui.update()
 
     def _setCols_(self):
         if self.mode:
@@ -30,18 +47,33 @@ class Map():
             self.manualBtn.configure(state="disabled",fg_color="#373737",hover_color="#373737",border_color="#373737",text_color="#777777")
 
     def _switchMode_(self):
+        if self.mode:
+            # program alapján fut
+            self.robot.loggingEnabled = False
         self.mode = not self.mode
         self._setCols_()
 
     def _handleMine_(self):
-        print("MINE")
+        try:
+            self.robot.mine()
+            self.update()
+        except:
+            pass
     def _handleTurn_(self,isLeft:bool):
-        print("TURN " + "LEFT!" if isLeft else "RIGHT!")
+        try:
+            self.robot.turnBy(1 if isLeft else 3)
+            self.update()
+        except:
+            pass
     def _handleStep_(self):
-        print("STEP")
+        try:
+            self.robot.stepForward(1)
+            self.update()
+        except:
+            pass
 
 
-    def __init__(self, nev:str, parentwindow,isSim):
+    def __init__(self, nev:str, parentwindow,isSim:bool,robotAPI:RobotAPI):
         '''
             Megnyitja a szimulációt egy külön lapon.
         '''
@@ -52,34 +84,74 @@ class Map():
         self.main.title(nev)
         self.main.resizable(False, False)
 
-        self.frame = CTkXYFrame(self.main)
-        self.frame.pack(fill="both", expand=True)
+        self.robot = robotAPI
 
+        self.outerFrame = CTkXYFrame(self.main,fg_color="#333333")
+        self.outerFrame.pack(fill="both", expand=True)
+
+        self.frame = None
 
         self.timer = None
         
         self.oldmap = []
         self.oldroverpos = []
 
-        self.img_size = (50,50) # Képek mérete
+        self.img_size = (61,64) # Képek mérete
 
-        self.goldOG = Image.open('img/gold.png').convert('RGBA')
-        self.gold = Ctk.CTkImage(light_image=self.goldOG, dark_image=self.goldOG, size=self.img_size) # Arany érc képének betöltése
+        goldOG = Image.open('img/gold.png').convert('RGBA')
+        gold = Ctk.CTkImage(light_image=goldOG, dark_image=goldOG, size=self.img_size) # Arany érc képének betöltése
 
         self.rover_img = "img/rover.png"
 
-        self.wallOG = Image.open('img/wall.png').convert('RGBA')
-        self.wall = Ctk.CTkImage(light_image=self.wallOG, dark_image=self.wallOG, size=self.img_size) # Kövek képének betöltése
+        wallOG = Image.open('img/wall.png').convert('RGBA')
+        wall = Ctk.CTkImage(light_image=wallOG, dark_image=wallOG, size=self.img_size) # Kövek képének betöltése
 
         self.nothing = Ctk.CTkImage(light_image=Image.open('img/nothing.png'), dark_image=Image.open("img/nothing.png"), size=self.img_size)
 
         # Azok amik ahoz kellenek hogy megjelenítse melyik helyeken járt meg ilyenek:
         self.visited = [[5,1],[3,1]]
-        self.saw = [[9,2],[10,2]]
-        self.visitedImg = Image.open("img/visited.png")
-        self.visitedImg = self.visitedImg.resize(self.img_size)
-        self.sawImg = Image.open("img/saw.png")
-        self.sawImg = self.sawImg.resize(self.img_size)
+        self.saw = [[9,1],[9,2]]
+
+        sawImg = Image.open("img/saw.png")
+        sawImg = sawImg.resize(self.img_size)
+
+        didntVisitImg = Image.open("img/didntvisit.png")
+        didntVisitImg = didntVisitImg.resize(self.img_size)
+
+
+        combined = goldOG.copy()
+        combined.alpha_composite(didntVisitImg)
+        goldDidnt = Ctk.CTkImage(light_image=combined,dark_image=combined,size=combined.size)
+
+        combined2 = goldOG.copy()
+        combined2.alpha_composite(sawImg)
+        goldSaw = Ctk.CTkImage(light_image=combined2,dark_image=combined2,size=combined2.size)
+
+        combined3 = wallOG.copy()
+        combined3.alpha_composite(didntVisitImg)
+        wallDidnt = Ctk.CTkImage(light_image=combined3,dark_image=combined3,size=combined3.size)
+
+        combined4 = wallOG.copy()
+        combined4.alpha_composite(sawImg)
+        wallSaw = Ctk.CTkImage(light_image=combined4,dark_image=combined4,size=combined4.size)
+
+        self.images = {
+                "@": {
+                        0 : goldDidnt,    # Semmi
+                        1 : gold,   # Ha már meglett látogatva
+                        2 : goldSaw       # Ha az isThere meg lett hívva rajt
+                    },
+                "#": {
+                        0 : wallDidnt,    # Semmi
+                        1 : wall,   # Ha már meglett látogatva
+                        2 : wallSaw       # Ha az isThere meg lett hívva rajt
+                    },
+                "": {
+                        0 : Ctk.CTkImage(light_image=didntVisitImg,dark_image=didntVisitImg,size=sawImg.size),
+                        1 : self.nothing,
+                        2 : Ctk.CTkImage(light_image=sawImg,dark_image=sawImg,size=sawImg.size)
+                   }
+                }
 
         # A GUI
         self.buttonFrame = Ctk.CTkFrame(self.main,height=100,fg_color="#575757")
@@ -145,41 +217,31 @@ class Map():
 
         self._setCols_()
 
-    def update(self, rover_x:int, rover_y:int, rover_point:str, map:list):
+
+    def update(self):
         '''
             Frissíti a térképet.
         '''
+        rover_x,rover_y = self.robot.pos
+        rover_point = self.robot.getIconFromFace(self.robot.facing)
+        map = self.robot.map
+
+        self.goldText.configure(text=" = "+str(self.robot.goldCount))
 
         if not [rover_x,rover_y] in self.visited:
             self.visited.append([rover_x,rover_y])
-
 
 
         if self.timer != None and self.oldmap == []: #Timer reset
             self.main.after_cancel(self.timer)
 
         if self.oldmap == []:
-            for widget in self.frame.winfo_children(): #Teljes tisztítás
+            for widget in self.outerFrame.winfo_children(): #Teljes tisztítás
                 widget.destroy()
 
             frame_size = (700,600) #Teljes ablak mérete (dinamikus = img_size[0]*len(map[1]),img_size[1]*len(map)+15, statikus = 700,600)
             self.main.geometry(f"{frame_size[0]}x{frame_size[1]}")
 
-        def cropimg(row:int, col:int, img):
-            '''
-                Egy adot sorban lévő db-ig lévő objetumot jeleníti meg
-            '''
-
-            original = Image.open(img)
-
-            width, height = original.size
-            left = (col - 2 )* width/12 # right - 1
-            top = (row - 1 )* width/12
-            right = (col-1)* width/12 # Amit szeretnén db-1
-            bottom = row * width/12
-            cropped_img = original.crop((left, top, right, bottom))
-
-            return cropped_img
 
         rover = {
             ">": lambda x: Ctk.CTkImage(light_image=cropimg(1, x, self.rover_img), dark_image=cropimg(1, x, self.rover_img), size=self.img_size),
@@ -192,53 +254,42 @@ class Map():
         def rover_anim(pos:str, rover_img:Ctk.CTkLabel, timer:int=3):
             rover_img.configure(image=pos(timer))
             timer = 3 if timer >= 13 else timer + 1
-            self.timer = self.main.after(1000, lambda: rover_anim(pos, rover_img, timer))
+            self.timer = self.main.after(333, lambda: rover_anim(pos, rover_img, timer))
+
+        if self.frame == None:
+            self.frame = Ctk.CTkFrame(self.outerFrame)
+            for row in range(len(map)):
+                for col in range(len(map[row])):
+                    self.frame.grid_rowconfigure(row, weight=1)
+                    self.frame.grid_columnconfigure(col, weight=1)
+                    self.outerFrame.grid_rowconfigure(row, weight=1)
+                    self.outerFrame.grid_columnconfigure(col, weight=1)
+            self.frame.grid(row=0,column=0,rowspan=len(map),columnspan=len(map[0]))
 
         for row in range(len(map)):
             for col in range(len(map[row])):
                 item = map[row][col]
                 if self.oldmap != [] and item == self.oldmap[row][col] and row != rover_y and col != rover_x:
                     continue
-                
-                self.frame.grid_rowconfigure(row, weight=1)
-                self.frame.grid_columnconfigure(col, weight=1)
 
 
-                imgLabel = None
-                currImg = None
-                if item == "@":
-                    imgLabel = Ctk.CTkLabel(self.frame, text="", image=self.gold)
+                version = 0
+                if [col,row] in self.visited:
+                    version = 1
+                elif [col,row] in self.saw:
+                    version = 2
+
+
+                if item != "@" and item != "#":
+                    imgLabel = Ctk.CTkLabel(self.frame, text="", image=self.images[""][version])
                     imgLabel.grid(row=row, column=col)
-                    currImg = self.goldOG
-                elif item == "#":
-                    imgLabel = Ctk.CTkLabel(self.frame, text="", image=self.wall)
-                    imgLabel.grid(row=row, column=col)
-                    currImg = self.wallOG
                 else:
-                    imgLabel = Ctk.CTkLabel(self.frame, text="", image=self.nothing)
-                    imgLabel.grid(row=row, column=col)
+                    imgLabel = Ctk.CTkLabel(self.frame, text="",image=self.images[item][version])
+                    imgLabel.grid(row=row,column=col)
 
-                toUse = None
-                if [col,row] in self.visited and imgLabel != None:
-                    toUse = self.visitedImg
-                elif [col,row] in self.saw and imgLabel != None:
-                    toUse = self.sawImg
 
-                if toUse != None:
-                    img = None
-                    if currImg == None:
-                        img = Ctk.CTkImage(light_image=toUse,dark_image=toUse,size=toUse.size)
-                    else:
-                        combined = toUse.copy()
-                        combined.alpha_composite(currImg)
-                        img = Ctk.CTkImage(light_image=combined,dark_image=combined,size=combined.size)
-                    overlay = Ctk.CTkLabel(self.frame,text="",image=img,fg_color="transparent")
-                    overlay.grid(row=row,column=col)
-                    
+
                 if row == rover_y and col == rover_x:
-                    if self.oldroverpos != [] and (self.oldroverpos[0] != rover_y or self.oldroverpos[1] != rover_x):
-                        Ctk.CTkLabel(self.frame, text="", image=self.nothing).grid(row=self.oldroverpos[0], column=self.oldroverpos[1])
-
                     self.oldroverpos = [rover_y, rover_x]
                     rover_lb = Ctk.CTkLabel(self.frame, text="", image=rover[rover_point](3))
                     rover_lb.grid(row=row, column=col)
@@ -247,6 +298,6 @@ class Map():
                         self.main.after_cancel(self.timer)
                     
 
-                    self.timer = self.main.after(1000, lambda: rover_anim(rover[rover_point], rover_lb))
+                    self.timer = self.main.after(333, lambda: rover_anim(rover[rover_point], rover_lb))
 
         self.oldmap = map

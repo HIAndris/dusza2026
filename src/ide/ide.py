@@ -2,6 +2,7 @@ import customtkinter as ctk
 from ide.mapui import Map
 from PIL import Image
 import os
+from interpreter.interpreter import *
 
 class IDE:
     def __init__(self, input_file:str, output_file:str):
@@ -9,8 +10,8 @@ class IDE:
         self.output_file = str(output_file)
 
         self.window = ctk.CTk()
-        self.subwindow = Map("Rover",self.window,True)
-        self.subwindow.update( 11, 2, '>',["....@..........",".#############.",".......@...>..."])
+        self.subwindow = Map("Rover",self.window,True,RobotAPI(["....@..........",".#############.",".......@...>..."],15,3,Logger(output_file)))
+        self.subwindow.update()
 
         screen_width = self.window.winfo_screenwidth()
         screen_height = self.window.winfo_screenheight()
