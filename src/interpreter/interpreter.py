@@ -26,7 +26,18 @@ class RobotAPI:
         line = self.map[y]
         line = line[:x]+to+line[x+1:]
         self.map[y] = line
+
+    def _log_(self,message):
+        if self.loggingEnabled:
+            self.logger.writeToLog(message)
+    def _endLog_(self):
+        if self.loggingEnabled:
+            self.logger.logState.append("EOR")
+            self.logger._write_()
+
     def __init__(self,mapIn:list[str],width:int,height:int,logger:Logger):
+        self.loggingEnabled = True
+
         self.logger = logger
         self.map = mapIn
         self.width = width
@@ -43,13 +54,12 @@ class RobotAPI:
         # 0 fel, 1 bal, 2 le, 3 jobb
         self.facing = self.getFaceFromIcon(self.map[self.pos[1]][self.pos[0]])
     def raiseError(self,error):
-        self.logger.logState.append("EOR")
-        self.logger._write_()
+        self._endLog_()
         raise ValueError(error)
     # itt már be lesz állítva hogy ne legyen negatív.
     # most jöttem rá hogy nem is lehet negatív mivel a turn-by-hoz csak egy számot lehet írni és nincsenek negatív számok az egészbe
     def turnBy(self,count:int):
-        self.logger.writeToLog("turn by "+str(count))
+        self._log_("turn by "+str(count))
         self.facing = (self.facing+count)%4
     def stepForward(self,count:int):
         nextPos = self.pos
@@ -57,22 +67,22 @@ class RobotAPI:
             nextPos = [ nextPos[0]-1 if self.facing == 1 else nextPos[0]+1 if self.facing == 3 else nextPos[0],\
                         nextPos[1]-1 if self.facing == 0 else nextPos[1]+1 if self.facing == 2 else nextPos[1]]
             if nextPos[0] < 0 or nextPos[0] >= self.width:
-                self.logger.writeToLog("step forward "+str(count)+" E_BEDROCK_HIT")
+                self._log_("step forward "+str(count)+" E_BEDROCK_HIT")
                 self.raiseError("E_BEDROCK_HIT")
             if nextPos[1] < 0 or nextPos[1] >= self.height:
-                self.logger.writeToLog("step forward "+str(count)+" E_BEDROCK_HIT")
+                self._log_("step forward "+str(count)+" E_BEDROCK_HIT")
                 self.raiseError("E_BEDROCK_HIT")
             if self.map[nextPos[1]][nextPos[0]] == '#':
-                self.logger.writeToLog("step forward "+str(count)+" E_BEDROCK_HIT")
+                self._log_("step forward "+str(count)+" E_BEDROCK_HIT")
                 self.raiseError("E_BEDROCK_HIT")
-        self.logger.writeToLog("step forward "+str(count))
+        self._log_("step forward "+str(count))
         self.pos = nextPos
     def mine(self):
         if self.map[self.pos[1]][self.pos[0]] != '@':
-            self.logger.writeToLog("mine here E_NO_GOLD")
+            self._log_("mine here E_NO_GOLD")
             self.raiseError("E_NO_GOLD")
 
-        self.logger.writeToLog("mine here")
+        self._log_("mine here")
         self._setPos_(self.pos[0],self.pos[1],'.')
     def isThere(self,toCheck:int)->bool:
         checkFor = ''
@@ -603,10 +613,12 @@ turn by 2
 set arany to isThere 2
 set isArany to not arany
 while isArany
+  step forward 1
   set arany to isThere 2
-step forward 10
+  set isArany to not arany
+step forward 1
 mine here
-print 9\
+print 1\
 """
     inter = Interpreter(prog,"outTest.txt")
     while -1 != inter.runLine():
