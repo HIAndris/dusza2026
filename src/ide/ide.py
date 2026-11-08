@@ -1,8 +1,10 @@
 from asyncio import InvalidStateError
 
 import customtkinter as ctk
+from ide.mapui import Map
 from PIL import Image
 import os
+from interpreter.interpreter import *
 from external.ctk_xyframe import *
 import re
 
@@ -14,6 +16,8 @@ class IDE:
         self.output_file = str(output_file)
 
         self.window = ctk.CTk()
+        self.subwindow = Map("Rover",self.window,True,RobotAPI(["....@..........",".#############.",".......@...>..."],15,3,Logger(output_file)))
+        self.subwindow.update()
 
         screen_width = self.window.winfo_screenwidth()
         screen_height = self.window.winfo_screenheight()
