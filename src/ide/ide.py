@@ -9,7 +9,7 @@ class IDE:
         self.output_file = str(output_file)
 
         self.window = ctk.CTk()
-        self.subwindow = Map("Rover",self.window)
+        self.subwindow = Map("Rover",self.window,True)
         self.subwindow.update( 11, 2, '>',["....@..........",".#############.",".......@...>..."])
 
         screen_width = self.window.winfo_screenwidth()

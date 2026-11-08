@@ -9,11 +9,44 @@ class Map():
     #testui = Map(nev="Teszt",parentwindow=<Ctk.Ctk object>)
     #testui.update(rover_x = 10, rover_y= 2, rover_point=">", map=["....@..........", ".#############.", ".......@......."])
 
-    def __init__(self, nev:str, parentwindow):
+    def _setCols_(self):
+        if self.mode:
+            # program alapján fut
+            self.stepBtn.configure(state="disabled",fg_color="#373737",hover_color="#373737",border_color="#373737",text_color="#777777")
+            self.turnLBtn.configure(state="disabled",fg_color="#373737",hover_color="#373737",border_color="#373737",text_color="#777777")
+            self.turnRBtn.configure(state="disabled",fg_color="#373737",hover_color="#373737",border_color="#373737",text_color="#777777")
+            self.mineBtn.configure(state="disabled",fg_color="#373737",hover_color="#373737",border_color="#373737",text_color="#777777")
+            self.simBtn.configure(state="disabled",fg_color="#373737",hover_color="#373737",border_color="#373737",text_color="#777777")
+            #ez be lesz kapcsolva
+            self.manualBtn.configure(state="normal",fg_color="#373737",hover_color="#474747",border_color="#ffffff",text_color="#ffffff")
+        else:
+            # kézi irányítás
+            self.stepBtn.configure(state="normal",fg_color="#373737",hover_color="#474747",border_color="#ffffff",text_color="#ffffff")
+            self.turnLBtn.configure(state="normal",fg_color="#373737",hover_color="#474747",border_color="#ffffff",text_color="#ffffff")
+            self.turnRBtn.configure(state="normal",fg_color="#373737",hover_color="#474747",border_color="#ffffff",text_color="#ffffff")
+            self.mineBtn.configure(state="normal",fg_color="#373737",hover_color="#474747",border_color="#ffffff",text_color="#ffffff")
+            self.simBtn.configure(state="normal",fg_color="#373737",hover_color="#474747",border_color="#ffffff",text_color="#ffffff")
+            #ez ki lesz kapcsolva
+            self.manualBtn.configure(state="disabled",fg_color="#373737",hover_color="#373737",border_color="#373737",text_color="#777777")
+
+    def _switchMode_(self):
+        self.mode = not self.mode
+        self._setCols_()
+
+    def _handleMine_(self):
+        print("MINE")
+    def _handleTurn_(self,isLeft:bool):
+        print("TURN " + "LEFT!" if isLeft else "RIGHT!")
+    def _handleStep_(self):
+        print("STEP")
+
+
+    def __init__(self, nev:str, parentwindow,isSim):
         '''
             Megnyitja a szimulációt egy külön lapon.
         '''
 
+        self.mode = isSim
         self.main = Ctk.CTkToplevel(parentwindow)
         self.main.focus()
         self.main.title(nev)
@@ -80,30 +113,37 @@ class Map():
         self.dPadFrame.pack(side="left",pady=20,padx=20)
         # A gombok:
         self.stepBtn = Ctk.CTkButton(self.dPadFrame,
-                                     fg_color="#373737",hover_color="#474747",border_color="#ffffff",border_width=3,
-                                     text="⇪",width=30,height=60,
-                                     corner_radius=50,font=('Arial',24,"bold"))
+                                     text="⇪",width=30,height=60,border_width=3,
+                                     corner_radius=50,font=('Arial',24,"bold"),command=self._handleStep_)
         self.stepBtn.place(anchor="n",relx=0.5,rely=0.1)
         self.turnLBtn = Ctk.CTkButton(self.dPadFrame,
-                                     fg_color="#373737",hover_color="#474747",border_color="#ffffff",border_width=3,
-                                     text="↰",width=30,height=60,
-                                     corner_radius=50,font=('Arial',24,"bold"))
+                                     text="↰",width=30,height=60,border_width=3,
+                                      corner_radius=50,font=('Arial',24,"bold"),command=lambda:self._handleTurn_(True))
         self.turnLBtn.place(anchor="w",relx=0.0,rely=0.6)
         self.turnRBtn = Ctk.CTkButton(self.dPadFrame,
-                                     fg_color="#373737",hover_color="#474747",border_color="#ffffff",border_width=3,
-                                     text="↱",width=30,height=60,
-                                     corner_radius=50,font=('Arial',24,"bold"))
+                                     text="↱",width=30,height=60,border_width=3,
+                                      corner_radius=50,font=('Arial',24,"bold"),command=lambda:self._handleTurn_(False))
         self.turnRBtn.place(anchor="e",relx=1.0,rely=0.6)
 
         # A jobb oldal
         self.RBtnWrapper = Ctk.CTkFrame(self.centeredCtrls,fg_color="#575757")
         self.RBtnWrapper.pack(side="right",fill="both",expand=True,padx=30)
         self.mineBtn = Ctk.CTkButton(self.RBtnWrapper,
-                                     fg_color="#373737",hover_color="#474747",border_color="#ffffff",border_width=3,
-                                     text="⛏",width=100,height=100,
-                                     corner_radius=50,font=('Arial',24,"bold"))
+                                     text="⛏",width=100,height=100,border_width=3,
+                                     corner_radius=50,font=('Arial',24,"bold"),command=self._handleMine_)
         self.mineBtn.place(rely=0.5,relx=0.5,anchor="center")
 
+
+        # A mód váltás:
+        self.switchSwitch = Ctk.CTkFrame(self.main,fg_color="transparent",corner_radius=100)
+        self.switchSwitch.place(x=5,y=5)
+
+        self.simBtn = Ctk.CTkButton(self.switchSwitch,text="Sim",font=('Arial',11,"bold"),width=60,corner_radius=4,border_width=1,command=self._switchMode_)
+        self.simBtn.pack(side="left",expand=True,fill="both")
+        self.manualBtn = Ctk.CTkButton(self.switchSwitch,text="Manual",font=('Arial',11,"bold"),width=60,corner_radius=4,border_width=1,command=self._switchMode_)
+        self.manualBtn.pack(side="right",expand=True,fill="both")
+
+        self._setCols_()
 
     def update(self, rover_x:int, rover_y:int, rover_point:str, map:list):
         '''
