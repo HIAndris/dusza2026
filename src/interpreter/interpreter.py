@@ -48,6 +48,7 @@ class RobotAPI:
         # Átkonvertálja a karaktert egy iránnyá
         self.getFaceFromIcon = lambda icon : 0 if icon == '^' else 1 if icon == '<' else 2 if icon == 'v' else 3
         self.getIconFromFace = lambda face : '^' if face == 0 else '<' if face == 1 else 'v' if face == 2 else '>'
+        self.pos=[0,0]
         for y in range(len(self.map)):
             for x in range(len(self.map[y])):
                 if self.isPlayer(x,y):
@@ -536,6 +537,7 @@ class Interpreter:
             self.spacecount.append(sum(spaces)-sum(self.spacecount))
 
         tokenized:list[str] = line.split(' ')   # Ez elég egyszerű mivel minden space-el el van választva
+        print(self.file)
 
         self.logHandler.lineNum = self.lineNum-self.rover.height
         match tokenized[0]:
@@ -560,7 +562,7 @@ class Interpreter:
                 self._handleWhile_(tokenized)
             case _:
                 # Itt nyugodtan kiléphet a program mivel a feladat alapján ez úgy se fog megtörténni (2.1)
-                print("Hiba az input file-al")
+                print(f"Hiba az input file-al ({tokenized[0]}, {self.lineNum})")
                 exit(-1)
         self.lineNum+=1
 

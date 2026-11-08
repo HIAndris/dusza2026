@@ -2,6 +2,9 @@ import customtkinter as Ctk
 from interpreter.interpreter import RobotAPI
 from PIL import Image
 from external.ctk_xyframe import *
+import os
+
+mapui_current_dir = os.path.dirname(os.path.abspath(__file__))
 
 def cropimg(row:int, col:int, img):
     '''
@@ -97,25 +100,25 @@ class Map():
         self.oldroverpos = []
 
         self.img_size = (61,64) # Képek mérete
-
-        goldOG = Image.open('img/gold.png').convert('RGBA')
+        
+        goldOG = Image.open(f"{mapui_current_dir}/../img/gold.png").convert('RGBA')
         gold = Ctk.CTkImage(light_image=goldOG, dark_image=goldOG, size=self.img_size) # Arany érc képének betöltése
 
-        self.rover_img = "img/rover.png"
+        self.rover_img = f"{mapui_current_dir}/../img/rover.png"
 
-        wallOG = Image.open('img/wall.png').convert('RGBA')
+        wallOG = Image.open(f"{mapui_current_dir}/../img/wall.png").convert('RGBA')
         wall = Ctk.CTkImage(light_image=wallOG, dark_image=wallOG, size=self.img_size) # Kövek képének betöltése
 
-        self.nothing = Ctk.CTkImage(light_image=Image.open('img/nothing.png'), dark_image=Image.open("img/nothing.png"), size=self.img_size)
+        self.nothing = Ctk.CTkImage(light_image=Image.open(f"{mapui_current_dir}/../img/nothing.png"), dark_image=Image.open(f"{mapui_current_dir}/../img/nothing.png"), size=self.img_size)
 
         # Azok amik ahoz kellenek hogy megjelenítse melyik helyeken járt meg ilyenek:
         self.visited = [[5,1],[3,1]]
         self.saw = [[9,1],[9,2]]
 
-        sawImg = Image.open("img/saw.png")
+        sawImg = Image.open(f"{mapui_current_dir}/../img/saw.png")
         sawImg = sawImg.resize(self.img_size)
 
-        didntVisitImg = Image.open("img/didntvisit.png")
+        didntVisitImg = Image.open(f"{mapui_current_dir}/../img/didntvisit.png")
         didntVisitImg = didntVisitImg.resize(self.img_size)
 
 
@@ -160,7 +163,7 @@ class Map():
         self.goldBox.pack(side="right",fill="y")
         self.goldFrame = Ctk.CTkFrame(self.goldBox,height=self.img_size[1],fg_color="#676767")
         self.goldFrame.place(anchor="center",relx=0.5,rely=0.5)
-        img = Image.open('img/gold.png')
+        img = Image.open(f"{mapui_current_dir}/../img/gold.png")
         gold2 = Ctk.CTkImage(light_image=img,dark_image=img,size=(int(img.width*1.5),int(img.height*1.5)))
         self.goldIMG = Ctk.CTkLabel(self.goldFrame,text="",image=gold2)
         self.goldIMG.pack(side="left")
