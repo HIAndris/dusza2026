@@ -1,4 +1,6 @@
 import sys
+from argparse import ArgumentError
+
 from ide.ide import IDE
 
 args = sys.argv[1:]
@@ -9,7 +11,7 @@ if "-q" in args:
     args.remove("-q")
 
 if len(args) != 2:
-    sys.exit("Argumentumok: [-q] {input-txt} {output-txt}")
+    raise ArgumentError(None, "Argumentumok: [-q] {input-txt} {output-txt}")
 
 input_txt = args[0]
 output_txt = args[1]
